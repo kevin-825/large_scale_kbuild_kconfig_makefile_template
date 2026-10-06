@@ -1,10 +1,8 @@
-
+# scripts/Kbuild.include
 
 # The path to Kbuild or Makefile. Kbuild has precedence over Makefile.
 kbuild-file = $(or $(wildcard $(src)/Kbuild),$(src)/Makefile)
 
-
-# scripts/Kbuild.include
 
 # Escape single quotes for use in echo statements
 escsq = $(subst ','\'',$(1))
@@ -20,8 +18,11 @@ depfile    = $(dot-target).d
 -include $(dot-target).cmd
 
 # Check if prerequisites changed or command line changed
+#any-prereq = $(filter-out $(PHONY),$?)
+#arg-check  = $(filter-out $(cmd_$(1)), $(cmd_$@))
+# Check if prerequisites changed or command line changed
 any-prereq = $(filter-out $(PHONY),$?)
-arg-check  = $(filter-out $(cmd_$(1)), $(cmd_$@))
+arg-check  = $(filter-out $(cmd_$(1)), $(cmd_$@)) $(filter-out $(cmd_$@), $(cmd_$(1)))
 
 # Execute command and write the new command line to .cmd file
 if_changed = $(if $(strip $(any-prereq) $(arg-check)), \
@@ -40,7 +41,15 @@ FORCE:
 
 .PHONY: $(PHONY)
 
-
-
+#Usage:
+# # 1. Define the REAL command that does the work
+# cmd_myaction = gcc $(c_flags) -c -o $@ $<
+# 
+# # 2. Define the PRETTY message shown during quiet builds
+# quiet_cmd_myaction = CC      $@
+# 
+# # 3. Call it inside your rule (and always include FORCE)
+# $(obj)/target.o: $(src)/source.c FORCE
+# 	$(call if_changed,myaction)
 
 

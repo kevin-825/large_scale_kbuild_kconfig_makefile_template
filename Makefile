@@ -19,17 +19,7 @@ else
   Q = @
 endif
 
-ifeq ($(origin O), command line)
-  BUILD_DIR := $(O)
-else
-  BUILD_DIR := build
-endif
-
-srctree := $(CURDIR)
-objtree := $(abspath $(BUILD_DIR))
-export srctree objtree Q
-
-
+export Q
 
 ARCH ?= riscv
 CROSS_COMPILE ?= riscv64-unknown-linux-gnu-
@@ -46,6 +36,16 @@ SIZE    := $(CROSS_COMPILE)size
 # Add this near line 25 where you define OBJCOPY, OBJDUMP, etc.
 NM      := $(CROSS_COMPILE)nm
 export CC LD AR AS OBJCOPY OBJDUMP SIZE NM
+
+ifeq ($(origin O), command line)
+  BUILD_DIR := $(O)
+else
+  BUILD_DIR := build_$(ARCH)
+endif
+
+srctree := $(CURDIR)
+objtree := $(abspath $(BUILD_DIR))
+export srctree objtree Q
 
 CFLAGS := -Wall -Wextra -Werror -g -ffreestanding -nostdlib -ffunction-sections -fdata-sections
 AFLAGS := -D__ASSEMBLY__ -g -ffreestanding -nostdlib
@@ -116,6 +116,7 @@ kernel: $(AUTO_CONF) $(AUTOCONF_H)
 	
 	@echo "  SIZE    vmkxv6.elf"
 	$(Q)$(SIZE) $(objtree)/vmkxv6.elf
+
 
 PHONY += clean
 clean:

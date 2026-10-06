@@ -46,29 +46,49 @@ $(info subdir-builtins: $(subdir-builtins))
 # The default target for this directory: build subdirectories, then link this directory.
 __build: $(subdir-target-y) $(dst)/built-in.a
 
-$(dst)/built-in.a: $(subdir-target-y) $(real-obj-y)
-	@echo "  AR      $@"
-	$(Q)mkdir -p $(dir $@)
-	$(Q)rm -f $@
-	$(if $(strip $(all-objs)), \
-		$(Q)$(AR) crT $@ $(all-objs), \
-		$(Q)$(AR) crT $@)
 
+# ---------------------------------------------------------------------------
+# Command Definitions
+# ---------------------------------------------------------------------------
+
+quiet_cmd_ar_builtin = AR      $@
+      cmd_ar_builtin = mkdir -p $(dir $@); rm -f $@; \
+                       $(if $(strip $(all-objs)), \
+                           $(AR) crT $@ $(all-objs), \
+                           $(AR) crT $@)
+
+quiet_cmd_cc_o_c = CC      $@
+      cmd_cc_o_c = mkdir -p $(dir $@); $(CC) $(c_flags) -c $< -o $@
+
+quiet_cmd_as_o_S = AS      $@
+      cmd_as_o_S = mkdir -p $(dir $@); $(CC) $(a_flags) -c $< -o $@
+
+
+# ---------------------------------------------------------------------------
+# Target Rules
+# ---------------------------------------------------------------------------
+
+# Link built-in.a
+# Note: $(subdir-builtins) is added so parent re-links if a child archive changes
+$(dst)/built-in.a: $(subdir-target-y) $(real-obj-y) $(subdir-builtins) FORCE
+	$(call if_changed,ar_builtin)
+
+# Help Make understand that sub-directory archives are created by descending
+$(subdir-builtins): $(subdir-target-y) ;
+
+# Subdirectory Recursion (Standard Make behavior, no if_changed needed)
 PHONY += $(subdir-target-y)
 $(subdir-target-y):
 	@echo "  DESCENDing into $@"
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.build obj=$@
 
 # Compile C Source Files
-$(dst)/%.o: $(src)/%.c 
-	@echo "  CC      $@"
-	$(Q)mkdir -p $(dir $@)
-	$(Q)$(CC) $(CFLAGS) -c $< -o $@
+$(dst)/%.o: $(src)/%.c FORCE
+	$(call if_changed,cc_o_c)
 
-$(dst)/%.o: $(src)/%.S
-	@echo "  AS      $@"
-	$(Q)mkdir -p $(dir $@)
-	$(Q)$(CC) $(CFLAGS) -c $< -o $@
+# Compile Assembly Files
+$(dst)/%.o: $(src)/%.S FORCE
+	$(call if_changed,as_o_S)
 
 
 # Declare non-file targets

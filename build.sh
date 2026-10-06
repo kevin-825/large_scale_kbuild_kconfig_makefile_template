@@ -10,9 +10,8 @@ declare -A target0=(
     [ARCH]=riscv
     [CROSS_COMPILE]=riscv64-unknown-linux-gnu-
     [DEFCONFIG]=riscv64_virt_64_debug_defconfig
-    [OUT_DIR]=build_riscv
     [NPROC]=1
-    [V]=1
+    [V]=0
     [QEMU]=qemu-system-riscv64
 )
 
@@ -20,7 +19,6 @@ declare -A target1=(
     [ARCH]=arm64
     [CROSS_COMPILE]=aarch64-linux-gnu-
     [DEFCONFIG]=aarch64_virt_64_debug_defconfig
-    [OUT_DIR]=build_arm64
     [NPROC]=$(nproc)
     [V]=1
     [QEMU]=qemu-system-aarch64
@@ -68,20 +66,12 @@ run_target() {
     echo "============================================================"
     echo " BUILDING TARGET [$target_id] : ${tgt[ARCH]}"
     echo "============================================================"
-    rm -rf "${tgt[OUT_DIR]}"
+    
     # Step A: Apply the defconfig to generate .config and auto.conf
-    make ARCH="${tgt[ARCH]}" \
-         CROSS_COMPILE="${tgt[CROSS_COMPILE]}" \
-         O="${tgt[OUT_DIR]}" \
-         V="${tgt[V]}" \
-         "${tgt[DEFCONFIG]}"
+    make ARCH="${tgt[ARCH]}" CROSS_COMPILE="${tgt[CROSS_COMPILE]}" V="${tgt[V]}" "${tgt[DEFCONFIG]}"
     echo ".config and auto.conf generated, now compiling..."
     # Step B: Compile the project
-    make ARCH="${tgt[ARCH]}" \
-         CROSS_COMPILE="${tgt[CROSS_COMPILE]}" \
-         O="${tgt[OUT_DIR]}" \
-         V="${tgt[V]}" \
-         -j"${tgt[NPROC]}"
+    make ARCH="${tgt[ARCH]}" CROSS_COMPILE="${tgt[CROSS_COMPILE]}" V="${tgt[V]}" -j"${tgt[NPROC]}"
 }
 
 # --- 4. Main Router ---
