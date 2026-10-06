@@ -20,7 +20,7 @@ obj-y :=
 
 include $(srctree)/scripts/Kbuild.include
 $(info kbuild-file:$(kbuild-file))
--include $(kbuild-file)
+include $(kbuild-file)
 include $(srctree)/scripts/Makefile.lib
 
 

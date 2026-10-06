@@ -1,0 +1,18 @@
+# scripts/Makefile.lib
+
+# Add GCC flags to automatically generate header dependency (.d) files
+# This ensures that changing a .h file triggers a rebuild of the .c files that include it
+c_flags = $(CFLAGS) -Wp,-MMD,$(depfile)
+a_flags = $(AFLAGS) -Wp,-MMD,$(depfile)
+
+# ---------------------------------------------------------------------------
+# Universal Rules
+# ---------------------------------------------------------------------------
+
+# Preprocess Linker Scripts (.ld.S -> .lds)
+# Uses the C Preprocessor to resolve #include and #define macros
+quiet_cmd_cpp_lds_S = LDS     $@
+      cmd_cpp_lds_S = $(CPP) $(c_flags) -P -U$(ARCH) -D__ASSEMBLY__ -DLINKER_SCRIPT -o $@ $<
+
+$(objtree)/%.lds: $(srctree)/%.lds.S FORCE
+	$(call if_changed,cpp_lds_S)

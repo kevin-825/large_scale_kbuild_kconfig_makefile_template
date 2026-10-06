@@ -2,3 +2,45 @@
 
 # The path to Kbuild or Makefile. Kbuild has precedence over Makefile.
 kbuild-file = $(or $(wildcard $(src)/Kbuild),$(src)/Makefile)
+
+
+# scripts/Kbuild.include
+
+# Escape single quotes for use in echo statements
+escsq = $(subst ','\'',$(1))
+
+# Echo the command if KBUILD_VERBOSE=1, else echo the short quiet string
+echo-cmd = $(if $($(quiet)cmd_$(1)),echo '  $(call escsq,$($(quiet)cmd_$(1)))';)
+
+# Create hidden path names for dependency tracking files
+dot-target = $(dir $@).$(notdir $@)
+depfile    = $(dot-target).d
+
+# Read the previous command line if it exists
+-include $(dot-target).cmd
+
+# Check if prerequisites changed or command line changed
+any-prereq = $(filter-out $(PHONY),$?)
+arg-check  = $(filter-out $(cmd_$(1)), $(cmd_$@))
+
+# Execute command and write the new command line to .cmd file
+if_changed = $(if $(strip $(any-prereq) $(arg-check)), \
+	@set -e; \
+	$(echo-cmd) $(cmd_$(1)); \
+	$(cmd_$(1)); \
+	echo 'cmd_$@ := $(call escsq,$(cmd_$(1)))' > $(dot-target).cmd)
+
+# ---------------------------------------------------------------------------
+# FORCE Dummy Target
+# ---------------------------------------------------------------------------
+# Used to force a target to rebuild every time, allowing 'if_changed' 
+# to take control of deciding whether to recompile.
+PHONY += FORCE
+FORCE:
+
+.PHONY: $(PHONY)
+
+
+
+
+

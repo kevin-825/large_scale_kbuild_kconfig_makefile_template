@@ -12,8 +12,10 @@ ifndef KBUILD_VERBOSE
   KBUILD_VERBOSE = 0
 endif
 ifeq ($(KBUILD_VERBOSE),1)
+  quiet =
   Q =
 else
+  quiet = quiet_
   Q = @
 endif
 
@@ -118,11 +120,12 @@ kernel: $(AUTO_CONF) $(AUTOCONF_H)
 PHONY += clean
 clean:
 	@echo "  CLEAN"
-	$(Q)rm -rf $(objtree) .config
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.clean obj=.
 
 PHONY += distclean
 distclean: clean
 	@echo "  DISTCLEAN"
 	$(Q)rm -f $(srctree)/.config $(srctree)/.config.old
+	$(Q)rm -rf $(objtree)
 
 .PHONY: $(PHONY)

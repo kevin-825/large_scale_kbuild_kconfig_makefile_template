@@ -1,0 +1,35 @@
+# scripts/Makefile.clean
+
+PHONY := __clean
+__clean:
+
+src := $(srctree)/$(obj)
+dst := $(objtree)/$(obj)
+
+# 1. Read the local Kbuild file to get raw obj-y / target definitions
+-include $(objtree)/include/config/auto.conf
+
+include $(srctree)/scripts/Kbuild.include
+$(info kbuild-file:$(kbuild-file))
+include $(kbuild-file)
+include $(srctree)/scripts/Makefile.lib
+
+# 3. Calculate subdirectories and object paths from fully expanded variables
+__subdir-y   := $(patsubst %/,%,$(filter %/, $(obj-y)))
+subdir-clean := $(addprefix $(obj)/, $(__subdir-y))
+
+__obj-y      := $(filter-out %/, $(obj-y))
+real-obj-y   := $(addprefix $(dst)/, $(__obj-y))
+
+# 4. Clean rules
+__clean: $(subdir-clean)
+	@echo "  CLEAN   $(obj)"
+	$(Q)rm -f $(real-obj-y) $(dst)/built-in.a
+	$(Q)rm -f $(dst)/.*.cmd $(dst)/.*.d $(dst)/*.lds
+
+# Recurse into subdirectories
+PHONY += $(subdir-clean)
+$(subdir-clean):
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.clean obj=$@
+
+.PHONY: $(PHONY)
