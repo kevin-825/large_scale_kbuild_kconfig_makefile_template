@@ -1,0 +1,7 @@
+mainmenu "Example Kernel Configuration"
+
+# Source subsystem and architecture-specific configurations
+source "arch/Kconfig"
+source "kernel/Kconfig"
+
+

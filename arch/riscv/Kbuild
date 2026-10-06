@@ -1,0 +1,7 @@
+# arch/riscv/Kbuild
+# (Included by scripts/Makefile.build obj=arch/riscv)
+
+obj-y += kernel/
+
+# for cleaning
+subdir- += boot

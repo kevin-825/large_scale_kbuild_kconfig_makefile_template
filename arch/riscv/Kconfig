@@ -1,0 +1,107 @@
+# ==============================================================================
+# arch/riscv/Kconfig
+# ==============================================================================
+
+menu "RISC-V System Configuration"
+
+
+
+choice
+	prompt "Base ISA"
+	default ARCH_RV64I
+
+config ARCH_RV32I
+	bool "RV32I"
+	select 32BIT
+
+config ARCH_RV64I
+	bool "RV64I"
+	select 64BIT
+
+endchoice
+
+
+
+# --- 1. Platform / SoC Selection ---
+# To keep this file modular, board-specific details could eventually be 
+# offloaded by adding: source "arch/riscv/platforms/Kconfig"
+menu "Platform Selection"
+
+choice
+	prompt "Target Board / Machine"
+	default TARGET_QEMU_VIRT_64
+
+	config TARGET_QEMU_VIRT_32
+		bool "QEMU 'virt' Machine (32-bit)"
+		depends on ARCH_RV32I
+		select RISCV_ISA_M
+		select RISCV_ISA_A
+		select RISCV_ISA_F
+		select RISCV_ISA_D
+		select RISCV_ISA_C
+		help
+		Generic QEMU machine for 32-bit RISC-V (qemu-system-riscv32 -M virt).
+		Base integer width is locked to 32-bit, but ISA extensions (M, A, F, etc.)
+		and interrupt controllers remain manually configurable below.
+
+	config TARGET_QEMU_VIRT_64
+		bool "QEMU 'virt' Machine (64-bit)"
+		depends on ARCH_RV64I
+		select RISCV_ISA_M
+		select RISCV_ISA_A
+		select RISCV_ISA_F
+		select RISCV_ISA_D
+		select RISCV_ISA_C
+		help
+		Generic QEMU machine for 64-bit RISC-V (qemu-system-riscv64 -M virt).
+		Base integer width is locked to 64-bit, but ISA extensions (M, A, F, etc.)
+		and interrupt controllers remain manually configurable below.
+
+	config TARGET_SIFIVE_UNMATCHED
+		bool "SiFive HiFive Unmatched (FU740 SoC)"
+		depends on ARCH_RV64I
+		select RISCV_ISA_M
+		select RISCV_ISA_A
+		select RISCV_ISA_F
+		select RISCV_ISA_D
+		select RISCV_ISA_C
+		select RISCV_PLIC
+		help
+		Target the SiFive HiFive Unmatched board.
+		The FU740 SoC is an RV64GC (RV64IMAFDC) architecture.
+		Automatically enforces 64-bit, standard extensions, and PLIC.
+endchoice
+endmenu
+
+# --- 3. ISA Extensions ---
+menu "ISA Extensions"
+
+config RISCV_ISA_M
+	bool "M (Integer Multiply/Divide)"
+	default y
+
+config RISCV_ISA_A
+	bool "A (Atomic Instructions)"
+	default y
+
+config RISCV_ISA_C
+	bool "C (Compressed Instructions)"
+	default y
+
+config RISCV_ISA_F
+	bool "F (Single-Precision Floating-Point)"
+
+config RISCV_ISA_D
+	bool "D (Double-Precision Floating-Point)"
+	depends on RISCV_ISA_F
+
+config RISCV_ISA_V
+	bool "V (Vector Extension)"
+	help
+	  Enable support for the RISC-V Vector Extension.
+	  Requires toolchain support and OS-level context-switch handling 
+	  for the vector register file (v0-v31).
+
+endmenu
+
+endmenu

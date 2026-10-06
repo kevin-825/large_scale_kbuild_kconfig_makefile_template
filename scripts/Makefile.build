@@ -1,0 +1,75 @@
+
+PHONY := __build
+__build:
+src := $(srctree)/$(obj)
+dst := $(objtree)/$(obj)
+
+$(info obj:$(obj) )
+$(info objtree:$(objtree))
+$(info dst:$(dst))
+
+
+# Init all relevant variables used in kbuild files so
+# 1) they have correct type
+# 2) they do not inherit any value from the environment
+obj-y :=
+
+
+# Read auto.conf if it exists, otherwise ignore
+-include $(objtree)/include/config/auto.conf
+
+include $(srctree)/scripts/Kbuild.include
+$(info kbuild-file:$(kbuild-file))
+-include $(kbuild-file)
+include $(srctree)/scripts/Makefile.lib
+
+
+$(info "collected obj-ys: $(obj-y)")
+
+#filter and get the subdirs from obj-y 
+__subdir-y      := $(patsubst %/,%,$(filter %/, $(obj-y)))
+subdir-target-y := $(addprefix $(obj)/, $(__subdir-y))
+$(info subdir-y: $(subdir-y))
+$(info subdir-targets-y: $(subdir-targets-y))
+
+__obj-y         := $(filter-out %/, $(obj-y))
+real-obj-y      := $(addprefix $(dst)/, $(__obj-y))
+$(info __obj-y: $(__obj-y))
+$(info real-obj-y: $(real-obj-y))
+
+# The magic of Kbuild: we link local objects AND the built-in.a from subdirectories
+subdir-builtins := $(addsuffix /built-in.a, $(addprefix $(dst)/, $(__subdir-y)))
+all-objs        := $(real-obj-y) $(subdir-builtins) 
+$(info subdir-builtins: $(subdir-builtins))
+
+
+# The default target for this directory: build subdirectories, then link this directory.
+__build: $(subdir-target-y) $(dst)/built-in.a
+
+$(dst)/built-in.a: $(subdir-target-y) $(real-obj-y)
+	@echo "  AR      $@"
+	$(Q)mkdir -p $(dir $@)
+	$(Q)rm -f $@
+	$(if $(strip $(all-objs)), \
+		$(Q)$(AR) crT $@ $(all-objs), \
+		$(Q)$(AR) crT $@)
+
+PHONY += $(subdir-target-y)
+$(subdir-target-y):
+	@echo "  DESCENDing into $@"
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.build obj=$@
+
+# Compile C Source Files
+$(dst)/%.o: $(src)/%.c 
+	@echo "  CC      $@"
+	$(Q)mkdir -p $(dir $@)
+	$(Q)$(CC) $(CFLAGS) -c $< -o $@
+
+$(dst)/%.o: $(src)/%.S
+	@echo "  AS      $@"
+	$(Q)mkdir -p $(dir $@)
+	$(Q)$(CC) $(CFLAGS) -c $< -o $@
+
+
+# Declare non-file targets
+.PHONY: $(PHONY)

@@ -1,0 +1,18 @@
+kxv6/
+├── Kconfig                   # Top-level configuration menu
+├── Makefile                  # Global flags, arch include, auto.conf loading
+├── .config                   # Generated user configuration
+├── scripts/
+│   ├── Kbuild.include        # if_changed, echo-cmd, dot-target macros
+│   ├── Makefile.build        # Recursive obj-y traversal & compilation
+│   ├── Makefile.lib          # CFLAGS, LDS rules, path scoping ($(src)/$(obj))
+│   └── Makefile.clean        # Recursive artifact removal
+├── arch/riscv/
+│   ├── Makefile              # Arch CFLAGS (-march/-mabi), QEMU rules, binary targets
+│   ├── Kbuild                # Directs build into kernel/, mm/
+│   └── kernel/
+│       ├── Kbuild            # obj-y += head.o trap.o
+│       └── kernel.ld.S       # Preprocessed linker script template
+└── kernel/
+    ├── Kbuild                # obj-y += main.o sys.o
+    └── main.c

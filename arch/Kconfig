@@ -1,0 +1,58 @@
+# ==============================================================================
+# arch/Kconfig
+# ==============================================================================
+
+menu "Architecture Selection"
+
+choice
+	prompt "Target Architecture"
+	default ARCH_RISCV
+
+config ARCH_ARM
+	bool "ARM (32-bit)"
+	help
+	  Support for 32-bit ARM architectures (e.g., ARMv7-A, Cortex-M).
+
+config ARCH_ARM64
+	bool "ARM64 (AArch64)"
+	select 64BIT
+	help
+	  Support for 64-bit ARM architectures (ARMv8-A).
+
+config ARCH_RISCV
+	bool "RISC-V"
+	help
+	  Support for RISC-V architectures (RV32/RV64).
+
+endchoice
+
+# --- Generic Architecture Properties ---
+
+config 64BIT
+	bool "64-bit kernel"
+	help
+	  Say yes to build a 64-bit kernel.
+
+config BIG_ENDIAN
+	bool "Build big-endian kernel"
+	default n
+	help
+	  Say yes to build a kernel for a big-endian hardware target.
+
+endmenu
+
+# ==============================================================================
+# Architecture-Specific Inclusions
+# ==============================================================================
+
+if ARCH_ARM
+source "arch/arm/Kconfig"
+endif
+
+if ARCH_ARM64
+source "arch/arm64/Kconfig"
+endif
+
+if ARCH_RISCV
+source "arch/riscv/Kconfig"
+endif
