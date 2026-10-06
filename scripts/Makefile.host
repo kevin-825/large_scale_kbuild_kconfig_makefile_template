@@ -1,0 +1,19 @@
+# scripts/Makefile.host
+
+HOSTCC      ?= gcc
+HOSTCFLAGS  ?= -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -fomit-frame-pointer
+HOSTLDFLAGS ?=
+
+# Gather host programs defined in Kbuild files (e.g., hostprogs-y += mkimage)
+host-cshlib := $(filter %.so, $(hostprogs-y))
+host-cxx    := $(filter %-cxx, $(hostprogs-y))
+host-csingle:= $(filter-out $(host-cshlib) $(host-cxx), $(hostprogs-y))
+
+# Prefix paths
+host-csingle := $(addprefix $(dst)/, $(host-csingle))
+
+quiet_cmd_host-csingle = HOSTCC  $@
+      cmd_host-csingle = $(HOSTCC) $(HOSTCFLAGS) $(HOSTLDFLAGS) -o $@ $<
+
+$(host-csingle): $(dst)/%: $(src)/%.c FORCE
+	$(call if_changed,host-csingle)
