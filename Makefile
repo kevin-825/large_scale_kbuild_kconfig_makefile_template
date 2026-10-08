@@ -30,12 +30,13 @@ CC      := $(CROSS_COMPILE)gcc
 LD      := $(CROSS_COMPILE)ld
 AR      := $(CROSS_COMPILE)ar
 AS      := $(CROSS_COMPILE)as
+GDB     := $(CROSS_COMPILE)gdb
 OBJCOPY := $(CROSS_COMPILE)objcopy
 OBJDUMP := $(CROSS_COMPILE)objdump
 SIZE    := $(CROSS_COMPILE)size
 # Add this near line 25 where you define OBJCOPY, OBJDUMP, etc.
 NM      := $(CROSS_COMPILE)nm
-export CC LD AR AS OBJCOPY OBJDUMP SIZE NM
+export CC LD AR AS GDB OBJCOPY OBJDUMP SIZE NM
 
 ifeq ($(origin O), command line)
   BUILD_DIR := $(O)
@@ -84,6 +85,7 @@ savedefconfig:
 
 -include $(AUTO_CONF)
 include $(srctree)/arch/$(ARCH)/Makefile
+-include $(srctree)/scripts/Makefile.qemu
 
 $(AUTO_CONF) $(AUTOCONF_H): $(DOTCONFIG)
 	@echo "  SYNC $@"
@@ -126,7 +128,7 @@ clean:
 PHONY += distclean
 distclean: clean
 	@echo "  DISTCLEAN"
-	$(Q)rm -f $(srctree)/.config $(srctree)/.config.old
+	$(Q)rm -f $(srctree)/.config $(srctree)/.config.old $(srctree)/.*.cmd  $(srctree)/.*.d
 	$(Q)rm -rf $(objtree)
 
 .PHONY: $(PHONY)

@@ -28,7 +28,6 @@ arg-check  = $(filter-out $(cmd_$(1)), $(cmd_$@)) $(filter-out $(cmd_$@), $(cmd_
 if_changed = $(if $(strip $(any-prereq) $(arg-check)), \
 	@set -e; \
 	$(echo-cmd) $(cmd_$(1)); \
-	$(cmd_$(1)); \
 	echo 'cmd_$@ := $(call escsq,$(cmd_$(1)))' > $(dot-target).cmd)
 
 # ---------------------------------------------------------------------------
