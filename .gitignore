@@ -2,5 +2,8 @@ build*/
 .*.cmd
 .*.d
 .config
-
+.config.old
+scripts/auto_gdbinit
+scripts/gdb_helper/gdb_log.txt
+scripts/gdb_helper/.gdb_history
 
