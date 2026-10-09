@@ -1,0 +1,208 @@
+# This is scripts/Makefile.qemu and included by top level makefile
+
+.PHONY: qemu qemu_dbg gdb
+
+
+# ============================================================================
+# Partition Type IDs
+# ============================================================================
+ptt_id_dos_boot   := c
+ptt_id_dos_rootfs := 83
+
+ptt_id_gpt_boot   := U
+ptt_id_gpt_rootfs := L
+
+# ============================================================================
+# SD Card
+# ============================================================================
+
+
+SDCARD_IMG  := $(objtree)/SDcard.img
+SECTOR_SZ_B := 512
+SDCARD_SIZE_MB :=256
+SDCARD_SECTOR_CNT :=  $(shell echo $$(( $(SDCARD_SIZE_MB)*1024*1024/$(SECTOR_SZ_B) )) )
+PART_TBL_TYPE := dos
+
+export SDCARD_IMG
+
+# ============================================================================
+# Boot Partition
+# ============================================================================
+
+BOOTFS_DIR   := $(objtree)/boot
+BOOT_LABEL   := KXV6_BOOT
+BOOT_FS_TYPE := vfat
+BOOT_TYPE_ID := $(ptt_id_$(PART_TBL_TYPE)_boot)
+BOOT_START_SECTOR   := 2048
+BOOT_PART_SIZE_MB   :=64
+BOOT_PART_SIZE_SECTOR:= $(shell echo $$(( $(BOOT_PART_SIZE_MB)*1024*1024/$(SECTOR_SZ_B) )) )
+BOOTFS_IMG := $(objtree)/boot.$(BOOT_FS_TYPE)
+
+# ============================================================================
+# RootFS Partition
+# ============================================================================
+ROOTFS_DIR   := $(objtree)/rootfs
+ROOT_LABEL   := KXV6_ROOT_FS
+ROOT_FS_TYPE := ext2
+ROOT_TYPE_ID := $(ptt_id_$(PART_TBL_TYPE)_rootfs)
+ROOT_START_SECTOR := $(shell echo $$(( $(BOOT_START_SECTOR) + $(BOOT_PART_SIZE_SECTOR) )) )
+ROOT_PART_SIZE_SECTOR := $(shell echo $$(( $(SDCARD_SECTOR_CNT) - $(ROOT_START_SECTOR) )) )
+ROOTFS_IMG := $(objtree)/rootfs.$(ROOT_FS_TYPE)
+
+ROOTFS_BLOCK_SIZE_B := 4096
+ROOTFS_BUILD_SIZE_BLK_CNT := $(shell echo $$(( $(ROOT_PART_SIZE_SECTOR)*$(SECTOR_SZ_B)/$(ROOTFS_BLOCK_SIZE_B) )) )
+
+
+$(info SDCARD_SECTOR_CNT=$(SDCARD_SECTOR_CNT))
+$(info BOOT_PART_SIZE_SECTOR=$(BOOT_PART_SIZE_SECTOR))
+$(info ROOT_START_SECTOR=$(ROOT_START_SECTOR))
+$(info ROOT_PART_SIZE_SECTOR=$(ROOT_PART_SIZE_SECTOR))
+$(info ROOTFS_BUILD_SIZE_BLK_CNT=$(ROOTFS_BUILD_SIZE_BLK_CNT))
+$(info ROOTFS size MB = \
+$(shell echo $$(( $(ROOTFS_BUILD_SIZE_BLK_CNT)*$(ROOTFS_BLOCK_SIZE_B)/1024/1024 )) ))
+$(info )
+
+# Read auto.conf if it exists, otherwise ignore
+include $(srctree)/scripts/Kbuild.include
+
+# ============================================================================
+# Common QEMU Arguments
+# ============================================================================
+
+QEMU_BASE_ARG = \
+	-M virt \
+	-m 1024M \
+	-nographic \
+	-drive file="$(SDCARD_IMG)",format=raw,id=hd0,if=none \
+	-device virtio-blk-device,drive=hd0 \
+	-netdev user,id=net0 \
+	-device virtio-net-device,netdev=net0 \
+	-append "\"root=/dev/vda2 rw rootwait console=ttyS0 earlycon=sbi\"" \
+	--kernel $(TARGET)
+
+QEMU_CMDs ?= $(QEMU) $(QEMU_BASE_ARG) $(QEMU_EXTRA_ARG)
+
+PROJECT_ROOT=$(srctree)
+TARGET_DIR=$(objtree)
+
+ifeq ($(CONFIG_64BIT),y)
+    ARCH_SIZE=64
+else
+    ARCH_SIZE=32
+endif
+
+export PROJECT_ROOT TARGET_DIR ARCH_SIZE
+AUTO_GDBINIT := $(srctree)/scripts/auto_gdbinit
+# ---------------------------------------------------------------------------
+# Command Definitions
+# ---------------------------------------------------------------------------
+quiet_cmd_qemu_run = Running  $@ 
+      cmd_qemu_run = echo "\n>>>[Running qemu ...]: \n"; \
+	  				 echo "$(QEMU_CMDs) \n" | sed 's/:/:\n/g' |sed 's/ -/\n          -/g'; \
+                     eval "$(QEMU_CMDs)"
+
+quiet_cmd_qemu_dbg = Running  $@
+      cmd_qemu_dbg = echo "\n>>>[Running qemu ...]: \n"; \
+	  				 echo "$(QEMU_CMDs) -s -S\n" | sed 's/:/:\n/g' |sed 's/ -/\n          -/g'; \
+                     eval "$(QEMU_CMDs) -s -S"
+
+quiet_cmd_qemu_dbg_run = Running  $@
+      cmd_qemu_dbg_run = echo "\n>>>[Running qemu ...]: \n"; \
+	  				     echo "$(QEMU_CMDs) -s\n" | sed 's/:/:\n/g' |sed 's/ -/\n          -/g'; \
+                         eval "$(QEMU_CMDs) -s"
+
+$(AUTO_GDBINIT): $(TARGET)
+	./scripts/auto_gdbinit.sh $(PROJECT_ROOT) $(TARGET_DIR) $(CROSS_COMPILE) $(TARGET) $(ARCH) $(ARCH_SIZE)
+	
+
+qemu: kernel $(AUTO_GDBINIT) $(SDCARD_IMG)
+	$(call if_changed,qemu_run)
+
+qemu_dbg: kernel $(AUTO_GDBINIT) $(SDCARD_IMG)
+	$(call if_changed,qemu_dbg)
+
+qemu_dbg_run: kernel $(AUTO_GDBINIT) $(SDCARD_IMG)
+	$(call if_changed,qemu_dbg_run)
+
+run:$(AUTO_GDBINIT)
+	@ echo "\n>>>[Running qemu ...]: \n"; \
+	echo "$(QEMU_CMDs)\n" | sed 's/:/:\n/g' |sed 's/ -/\n          -/g'; \
+	eval "$(QEMU_CMDs)"
+
+run_dbg:$(AUTO_GDBINIT)
+	@ echo "\n>>>[Running qemu ...]: \n"; \
+	echo "$(QEMU_CMDs) -s -S\n" | sed 's/:/:\n/g' |sed 's/ -/\n          -/g'; \
+	eval "$(QEMU_CMDs) -s -S"
+
+gdb: $(AUTO_GDBINIT)
+	$(GDB) -x $<
+
+
+
+# image creration
+
+
+quiet_cmd_partition_img = PARTITION $@
+      cmd_partition_img = rm -f $@ && truncate -s $$(( $(SDCARD_SECTOR_CNT)*$(SECTOR_SZ_B) )) $@ && \
+	      printf '%s\n' \
+			'label: $(PART_TBL_TYPE)' \
+			'' \
+			'start=$(BOOT_START_SECTOR),size=$(BOOT_PART_SIZE_SECTOR),type=$(BOOT_TYPE_ID)' \
+			'type=$(ROOT_TYPE_ID)' | \
+		sfdisk $@ >/dev/null
+
+quiet_cmd_install_boot = INSTALL_BOOT $@
+      cmd_install_boot = dd if=$(BOOTFS_IMG) of=$@ bs=$(SECTOR_SZ_B) seek=$(BOOT_START_SECTOR) conv=notrunc status=none
+
+quiet_cmd_install_rootfs = INSTALL_ROOTFS $@
+      cmd_install_rootfs = dd if=$(ROOTFS_IMG) of=$@ bs=$(SECTOR_SZ_B) seek=$(ROOT_START_SECTOR) conv=notrunc status=none
+
+$(SDCARD_IMG): $(BOOTFS_IMG) $(ROOTFS_IMG)
+	$(call if_changed,partition_img)
+	$(call cmd_install_boot)
+	$(call cmd_install_rootfs)
+
+
+quiet_cmd_bootfs = Create BOOTFS img $@
+      cmd_bootfs = rm -f $@ && mkfs.vfat -C -n "$(BOOT_LABEL)" $@ $$(( $(BOOT_PART_SIZE_MB) * 1024 )) && \
+      	mmd -i $@ ::/extlinux && \
+      	mcopy -i $@ $(TARGET) ::/ && \
+      	mcopy -i $@ $(objtree)/extlinux.conf ::/extlinux/
+
+$(BOOTFS_IMG): $(TARGET) $(objtree)/extlinux.conf
+	$(call if_changed,bootfs)
+
+quiet_cmd_rootfs = Create ROOT FS img $@
+      cmd_rootfs = rm -f $@ && mke2fs -q -b $(ROOTFS_BLOCK_SIZE_B) \
+	  	-L "$(ROOT_LABEL)" -t $(ROOT_FS_TYPE) -d $(ROOTFS_DIR) $@ $(ROOTFS_BUILD_SIZE_BLK_CNT)
+
+ROOTFS_STAMP := $(ROOTFS_DIR)/.populate.stamp
+
+$(ROOTFS_IMG): $(ROOTFS_STAMP)
+	$(call if_changed,rootfs)
+
+quiet_cmd_rootfs_staging_populate = POPULATE ROOTFS
+	  cmd_rootfs_staging_populate = \
+			rm -rf $(ROOTFS_DIR) && \
+			mkdir -p $(ROOTFS_DIR) && \
+			echo "rootfs population goes here!" && \
+			touch $@
+
+$(ROOTFS_STAMP):
+	$(call if_changed,rootfs_staging_populate)
+
+quiet_cmd_extlinux = EXTLINUX $@
+
+cmd_extlinux = \
+	mkdir -p $(dir $@) && \
+	printf '%s\n' \
+		'default linux' \
+		'timeout 1' \
+		'' \
+		'label linux' \
+		'    kernel /vmkxv6.elf' \
+		'    append root=/dev/vda2 rw rootwait console=ttyS0 earlycon=sbi' \
+		> $@
+        
+$(objtree)/extlinux.conf:
+	$(call if_changed,extlinux)
