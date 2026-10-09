@@ -5,6 +5,9 @@ PHONY :=
 PHONY += all
 all: kernel
 
+-include scripts/Makefile.build_profiles
+
+
 ifeq ("$(origin V)", "command line")
   KBUILD_VERBOSE = $(V)
 endif
@@ -37,6 +40,9 @@ SIZE    := $(CROSS_COMPILE)size
 # Add this near line 25 where you define OBJCOPY, OBJDUMP, etc.
 NM      := $(CROSS_COMPILE)nm
 export CC LD AR AS GDB OBJCOPY OBJDUMP SIZE NM
+$(info slected profile:)
+$(info [$(pN)] $(SELECTED_PROFILE_STR) )
+$(info )
 
 ifeq ($(origin O), command line)
   BUILD_DIR := $(O)
@@ -46,7 +52,10 @@ endif
 
 srctree := $(CURDIR)
 objtree := $(abspath $(BUILD_DIR))
-export srctree objtree Q
+
+TARGET := $(objtree)/vmkxv6.elf
+
+export srctree objtree TARGET
 
 CFLAGS := -Wall -Wextra -Werror -g -ffreestanding -nostdlib -ffunction-sections -fdata-sections
 AFLAGS := -D__ASSEMBLY__ -g -ffreestanding -nostdlib
@@ -61,12 +70,12 @@ AUTO_CONF   := $(CONF_DIR)/auto.conf
 
 #Configuration Targets
 PHONY += menuconfig
-menuconfig:
+menuconfig:FORCE
 	@echo "  MENUCONFIG"
 	$(Q)menuconfig $(srctree)/Kconfig
 
 PHONY += savedefconfig
-savedefconfig:
+savedefconfig:FORCE
 	@echo "  SAVEDEFCONFIG defconfig"
 	$(Q)savedefconfig \
 		--kconfig $(srctree)/Kconfig \
@@ -76,12 +85,22 @@ savedefconfig:
 #ifneq ($(filter %_defconfig,$(MAKECMDGOALS)),)
 #  PHONY += $(MAKECMDGOALS)
 #endif
-%_defconfig:
+
+# Default profile defconfig
+PHONY += defconfig
+defconfig: FORCE
+	@echo "  DEFCONFIG $(DEFCONFIG)"
+	$(Q)mkdir -p $(CONF_DIR) $(GEN_DIR)
+	$(Q)defconfig \
+		--kconfig "$(srctree)/Kconfig" \
+		"$(srctree)/arch/$(ARCH)/configs/$(notdir $@)"
+
+%_defconfig: FORCE
 	@echo "  DEFCONFIG $@"
 	$(Q)mkdir -p $(CONF_DIR) $(GEN_DIR)
 	$(Q)defconfig \
-		--kconfig $(srctree)/Kconfig \
-		$(srctree)/configs/$@
+		--kconfig "$(srctree)/Kconfig" \
+		"$(srctree)/arch/$(ARCH)/configs/$(notdir $@)"
 
 -include $(AUTO_CONF)
 include $(srctree)/arch/$(ARCH)/Makefile
@@ -96,28 +115,34 @@ $(AUTO_CONF) $(AUTOCONF_H): $(DOTCONFIG)
 		--config-out $(DOTCONFIG) \
 		$(srctree)/Kconfig
 
-PHONY += kernel
-PHONY += kernel
-kernel: $(AUTO_CONF) $(AUTOCONF_H)
+
+$(TARGET): $(AUTO_CONF) $(AUTOCONF_H) $(objtree)/built-in.a
 	@echo "  BUILD kernel"
-	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.build obj=.
-	
 	@echo "  LD      vmkxv6.elf"
-	$(Q)$(LD) --gc-sections -Map=$(objtree)/vmkxv6.map -T $(srctree)/arch/$(ARCH)/kernel/vmkxv6.lds \
+	$(Q)$(LD) --gc-sections \
+		-Map=$(objtree)/vmkxv6.map \
+		-T $(srctree)/arch/$(ARCH)/kernel/vmkxv6.lds \
 		--whole-archive $(objtree)/built-in.a \
-		--no-whole-archive -o $(objtree)/vmkxv6.elf
-		
+		--no-whole-archive \
+		-o $@
+
 	@echo "  OBJCOPY vmkxv6.bin"
-	$(Q)$(OBJCOPY) -O binary $(objtree)/vmkxv6.elf $(objtree)/vmkxv6.bin
-	
+	$(Q)$(OBJCOPY) -O binary $@ $(objtree)/vmkxv6.bin
+
 	@echo "  NM      System.map"
-	$(Q)$(NM) -n $(objtree)/vmkxv6.elf > $(objtree)/System.map
-	
+	$(Q)$(NM) -n $@ > $(objtree)/System.map
+
 	@echo "  OBJDUMP vmkxv6.asm"
-	$(Q)$(OBJDUMP) -S -d $(objtree)/vmkxv6.elf > $(objtree)/vmkxv6.asm
-	
+	$(Q)$(OBJDUMP) -S -d $@ > $(objtree)/vmkxv6.asm
+
 	@echo "  SIZE    vmkxv6.elf"
-	$(Q)$(SIZE) $(objtree)/vmkxv6.elf
+	$(Q)$(SIZE) $@
+
+
+$(objtree)/built-in.a:
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.build obj=.
+
+kernel: $(TARGET)
 
 
 PHONY += clean
